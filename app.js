@@ -24,15 +24,19 @@ async function getCoordinates(city) {
 
 //fetch the current weather for a set of coordinates using Open-Meteo's forecast API
 async function getForecast(latitude, longitude) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`;
+  /*
+    current  -> data.current.{temperature_2m, weather_code, wind_speed_10m}
+    daily    -> data.daily.{time, weather_code, temperature_2m_max, temperature_2m_min, precipitation_sum}
+    each daily field is a parallel array — data.daily.time[0] pairs with data.daily.temperature_2m_max[0], etc.
+  */
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`;
 
   const response = await fetch(url);
   const data = await response.json();
 
   console.log(data);
 
-  // only current_weather is used for now; the rest of the response (hourly/daily) is unused
-  return data.current_weather;
+  return data;
 }
 //add a click listener to the search button
 searchButton.addEventListener('click', async () => {
@@ -45,10 +49,10 @@ searchButton.addEventListener('click', async () => {
   try {
     // geocode first, then use those coordinates to fetch the forecast — each step depends on the last
     const coords = await getCoordinates(city);
-    console.log(coords);
+    console.log('here are the cords:', coords);
 
     const forecast = await getForecast(coords.latitude, coords.longitude);
-    console.log(forecast);
+    console.log('here is the forcast:', forecast);
   } catch (error) {
     // catches a bad city name from getCoordinates or a network failure from either fetch
     console.log(error.message);
