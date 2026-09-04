@@ -2,6 +2,30 @@
 const searchInput = document.getElementById('search-input');
 const searchButton = document.getElementById('search-button');
 
+const WEATHER_CODES = {
+  0: { label: 'Clear sky', icon: '☀️' },
+  1: { label: 'Mainly clear', icon: '🌤️' },
+  2: { label: 'Partly cloudy', icon: '⛅' },
+  3: { label: 'Overcast', icon: '☁️' },
+  45: { label: 'Fog', icon: '🌫️' },
+  48: { label: 'Depositing rime fog', icon: '🌫️' },
+  51: { label: 'Light drizzle', icon: '🌦️' },
+  53: { label: 'Moderate drizzle', icon: '🌦️' },
+  55: { label: 'Dense drizzle', icon: '🌧️' },
+  61: { label: 'Slight rain', icon: '🌧️' },
+  63: { label: 'Moderate rain', icon: '🌧️' },
+  65: { label: 'Heavy rain', icon: '🌧️' },
+  71: { label: 'Slight snow', icon: '🌨️' },
+  73: { label: 'Moderate snow', icon: '🌨️' },
+  75: { label: 'Heavy snow', icon: '❄️' },
+  80: { label: 'Rain showers', icon: '🌦️' },
+  95: { label: 'Thunderstorm', icon: '⛈️' },
+};
+
+function getWeatherInfo(code) {
+  return WEATHER_CODES[code] || { label: 'unknown', icon: '?' };
+}
+
 //look up a city's coordinates using Open-Meteo's geocoding API
 async function getCoordinates(city) {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
@@ -29,7 +53,7 @@ async function getForecast(latitude, longitude) {
     daily    -> data.daily.{time, weather_code, temperature_2m_max, temperature_2m_min, precipitation_sum}
     each daily field is a parallel array — data.daily.time[0] pairs with data.daily.temperature_2m_max[0], etc.
   */
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=16`;
 
   const response = await fetch(url);
   const data = await response.json();
@@ -38,6 +62,61 @@ async function getForecast(latitude, longitude) {
 
   return data;
 }
+//write current conditions into the #current container
+function renderCurrent(data) {
+  const { name, temperature, weatherCode, wind } = data;
+  const { label, icon } = getWeatherInfo(weatherCode);
+
+  document.getElementById('current-city').textContent = name;
+  document.getElementById('current-temp').textContent = `${temperature}°C`;
+  document.getElementById('current-condition').textContent = `${icon} ${label}`;
+  document.getElementById('current-wind').textContent = `Wind: ${wind} km/h`;
+}
+
+//build a day-card for each entry in the daily arrays and append them into #forecast
+function renderForecast(dailyData) {
+  const {
+    time,
+    weather_code,
+    temperature_2m_max,
+    temperature_2m_min,
+    precipitation_sum,
+  } = dailyData;
+  const forecastContainer = document.getElementById('forecast');
+
+  time.forEach((date, i) => {
+    const { label, icon } = getWeatherInfo(weather_code[i]);
+
+    const card = document.createElement('div');
+    card.className = 'day-card';
+    card.innerHTML = `
+      <p>${date}</p>
+      <p>${icon} ${label}</p>
+      <p>High: ${temperature_2m_max[i]}°C</p>
+      <p>Low: ${temperature_2m_min[i]}°C</p>
+      <p>Precip: ${precipitation_sum[i]} mm</p>
+    `;
+    forecastContainer.appendChild(card);
+  });
+}
+
+//blank out old results so repeated searches don't stack on top of each other
+function clearResults() {
+  document.getElementById('current-city').textContent = '';
+  document.getElementById('current-temp').textContent = '';
+  document.getElementById('current-condition').textContent = '';
+  document.getElementById('current-wind').textContent = '';
+  document.getElementById('forecast').innerHTML = '';
+}
+
+function showLoading() {
+  document.getElementById('loading').hidden = false;
+}
+
+function hideLoading() {
+  document.getElementById('loading').hidden = true;
+}
+
 //add a click listener to the search button
 searchButton.addEventListener('click', async () => {
   const city = searchInput.value.trim();
@@ -46,15 +125,27 @@ searchButton.addEventListener('click', async () => {
     console.log('please enter a city...');
     return;
   }
+
+  clearResults();
+  showLoading();
+
   try {
     // geocode first, then use those coordinates to fetch the forecast — each step depends on the last
     const coords = await getCoordinates(city);
-    console.log('here are the cords:', coords);
-
     const forecast = await getForecast(coords.latitude, coords.longitude);
-    console.log('here is the forcast:', forecast);
+
+    renderCurrent({
+      name: coords.name,
+      temperature: forecast.current.temperature_2m,
+      weatherCode: forecast.current.weather_code,
+      wind: forecast.current.wind_speed_10m,
+    });
+
+    renderForecast(forecast.daily);
   } catch (error) {
     // catches a bad city name from getCoordinates or a network failure from either fetch
     console.log(error.message);
+  } finally {
+    hideLoading();
   }
 });
