@@ -86,6 +86,11 @@ h1 {
   margin: 6px 0;
 }
 
+#current-vibe {
+  font-style: italic;
+  color: #666;
+}
+
 #forecast {
   margin-top: 32px;
   width: 100%;

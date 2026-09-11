@@ -33,6 +33,131 @@ function celsiusToFahrenheit(celsius) {
   return Math.round((celsius * 9) / 5 + 32);
 }
 
+//picks a random funny caption for the current conditions — weather code wins over
+//temperature (rain feels gloomy whether it's 50 or 80 out), temperature only decides
+//the vibe when skies are clear/partly cloudy/overcast
+function getWeatherVibe(weatherCode, fahrenheit) {
+  const pick = (options) => options[Math.floor(Math.random() * options.length)];
+
+  // shared message pools, one per vibe — several weather codes can point at the same pool
+  // (e.g. light and moderate drizzle both feel "gloomby") without duplicating the lines
+  const VIBE_POOLS = {
+    thunderstorm: [
+      "thor's throwin hands out there lol",
+      'Zeus is for sure in the bathroom rn',
+      'stay inside.. get cozy',
+      'the sky is definitely mad about something aha',
+    ],
+    lightSnow: [
+      'snow day szn, go be a menace',
+      'frosty out here, bundle up champ',
+      "winter's really testing us today",
+      "sky's sprinkling powdered sugar",
+    ],
+    heavySnow: [
+      'full blizzard cosplay outside',
+      'the sky is just dumping glitter on us',
+      'build a snowman or stay in bed, no in between',
+      "mother nature said 'let it snow' and meant it",
+    ],
+    rain: [
+      'gloomby..',
+      "the sky's just having a cry rn",
+      'grab an umbrella or just get built different',
+      'moody weather, moodier playlist',
+    ],
+    heavyRain: [
+      "it's not raining, the sky's just leaking",
+      'puddle jumping weather, embrace it',
+      'soggy socks incoming',
+      'the clouds are absolutely sobbing',
+    ],
+    fog: [
+      "can't see nothin but vibes",
+      'spooky little fog moment',
+      'mysterious weather arc unlocked',
+      "the world's just one big soft-focus filter today",
+    ],
+    cloudy: [
+      'moody out, kinda love it aha',
+      "sun's playing hide n seek",
+      'time to read',
+      'the sun called out sick, time to get a big mac and cry',
+    ],
+  };
+
+  const CODE_TO_VIBE_POOL = {
+    95: 'thunderstorm',
+    71: 'lightSnow',
+    73: 'lightSnow',
+    75: 'heavySnow',
+    51: 'rain',
+    53: 'rain',
+    55: 'rain',
+    61: 'rain',
+    63: 'rain',
+    80: 'rain',
+    65: 'heavyRain',
+    45: 'fog',
+    48: 'fog',
+    2: 'cloudy',
+    3: 'cloudy',
+  };
+
+  const vibePool = CODE_TO_VIBE_POOL[weatherCode];
+  if (vibePool) {
+    return pick(VIBE_POOLS[vibePool]);
+  }
+
+  if (fahrenheit >= 95) {
+    return pick([
+      "it's basically the sun's front yard out there",
+      'melt-your-face hot, stay hydrated',
+      'hot enough to fry an egg on the sidewalk',
+    ]);
+  }
+  if (fahrenheit >= 85) {
+    return pick([
+      "omg it's dang toasty out here, don't forget water",
+      "summer's really flexing today aha",
+      'sweaty..',
+    ]);
+  }
+  if (fahrenheit >= 70) {
+    return pick([
+      "omg.. it's.. perfect",
+      'certified ten out of ten weather',
+      'put this weather in a museum aha',
+    ]);
+  }
+  if (fahrenheit >= 60) {
+    return pick([
+      "get out that hypebeast sweatshirt, we've made it..",
+      'pretty solid ngl',
+      'this is it.',
+    ]);
+  }
+  if (fahrenheit >= 45) {
+    return pick([
+      'a lil nippy, grab a hoodie',
+      "where's my supa suit",
+      'brisk but respectable',
+    ]);
+  }
+  if (fahrenheit >= 32) {
+    return pick([
+      'nosedrippings will soon be chopsticks',
+      'brrrr',
+      'chilly but not for this guy',
+    ]);
+  }
+  return pick([
+    'arctic conditions.. time to man up',
+    'your face will regret going outside',
+    'penguins would feel at home rn.. lol',
+  ]);
+}
+
 //turns an ISO date string (e.g. "2026-09-11") into a weekday name (e.g. "Thursday")
 function getDayName(dateString) {
   // appending T00:00:00 (no Z) parses it as local time, not UTC — avoids the
@@ -91,6 +216,10 @@ function renderCurrent(data) {
     `${fahrenheit}°F <span class="temp-secondary">${temperature}°C</span>`;
   document.getElementById('current-condition').textContent = `${icon} ${label}`;
   document.getElementById('current-wind').textContent = `Wind: ${wind} mph`;
+  document.getElementById('current-vibe').textContent = getWeatherVibe(
+    weatherCode,
+    fahrenheit,
+  );
 }
 
 //build a day-card for each entry in the daily arrays and append them into #forecast
@@ -127,6 +256,7 @@ function clearResults() {
   document.getElementById('current-temp').textContent = '';
   document.getElementById('current-condition').textContent = '';
   document.getElementById('current-wind').textContent = '';
+  document.getElementById('current-vibe').textContent = '';
   document.getElementById('forecast').innerHTML = '';
 }
 
