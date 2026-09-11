@@ -2,6 +2,7 @@
 const searchInput = document.getElementById('search-input');
 const searchButton = document.getElementById('search-button');
 
+//object with keys that hold a nested object
 const WEATHER_CODES = {
   0: { label: 'Clear sky', icon: '☀️' },
   1: { label: 'Mainly clear', icon: '🌤️' },
@@ -22,6 +23,7 @@ const WEATHER_CODES = {
   95: { label: 'Thunderstorm', icon: '⛈️' },
 };
 
+//function to get weather infor
 function getWeatherInfo(code) {
   return WEATHER_CODES[code] || { label: 'unknown', icon: '?' };
 }
@@ -62,6 +64,7 @@ async function getForecast(latitude, longitude) {
 
   return data;
 }
+
 //write current conditions into the #current container
 function renderCurrent(data) {
   const { name, temperature, weatherCode, wind } = data;
@@ -90,14 +93,14 @@ function renderForecast(dailyData) {
 
   time.forEach((date, i) => {
     const { label, icon } = getWeatherInfo(weather_code[i]);
-
     const card = document.createElement('div');
+
     card.className = 'day-card';
     card.innerHTML = `
       <p>${date}</p>
       <p>${icon} ${label}</p>
-      <p>High: ${temperature_2m_max[i]}°C and ${(temperature_2m_max[i] * 9) / 5 + 32}°F</p>
-      <p>Low: ${temperature_2m_min[i]}°C and ${(temperature_2m_min[i] * 9) / 5 + 32}°F</p>
+      <p>High: ${temperature_2m_max[i]}°C / ${(temperature_2m_max[i] * 9) / 5 + 32}°F</p>
+      <p>Low: ${temperature_2m_min[i]}°C / ${(temperature_2m_min[i] * 9) / 5 + 32}°F</p>
       <p>Precip: ${precipitation_sum[i]} mm</p>
     `;
     forecastContainer.appendChild(card);
@@ -113,6 +116,7 @@ function clearResults() {
   document.getElementById('forecast').innerHTML = '';
 }
 
+//two functions to hide the loading element
 function showLoading() {
   document.getElementById('loading').hidden = false;
 }
@@ -121,12 +125,12 @@ function hideLoading() {
   document.getElementById('loading').hidden = true;
 }
 
-//add a click listener to the search button
+//add a click listener to the search button and grab input value
 searchButton.addEventListener('click', async () => {
   const city = searchInput.value.trim();
 
   if (!city) {
-    console.log('please enter a city...');
+    console.log('Oops, try again...');
     return;
   }
 
