@@ -2,16 +2,48 @@
   box-sizing: border-box;
 }
 
+html {
+  background: linear-gradient(
+    -45deg,
+    #fff3cd,
+    #ffd9c4,
+    #d4f0f0,
+    #d9e8ff,
+    #f0e0ff,
+    cornsilk
+  );
+  background-size: 400% 400%;
+  animation: drift-colors 30s ease infinite;
+}
+
 body {
   display: flex;
   flex-direction: column;
   align-items: center;
   min-height: 100vh;
-  background-color: cornsilk;
   font-family: system-ui, sans-serif;
   max-width: 900px;
   margin: 0 auto;
   padding: 24px;
+}
+
+@keyframes drift-colors {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    animation: none;
+    background: cornsilk;
+  }
 }
 
 h1 {
@@ -128,6 +160,19 @@ h1 {
 
 .day-card p:first-child {
   font-weight: bold;
+}
+
+.day-date {
+  color: #888;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 8px !important;
+}
+
+.day-icon {
+  font-size: 1.75rem;
+  margin: 4px 0 !important;
 }
 
 @keyframes fade-in-diagonal {

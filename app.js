@@ -166,6 +166,12 @@ function getDayName(dateString) {
   return date.toLocaleDateString(undefined, { weekday: 'long' });
 }
 
+//turns an ISO date string (e.g. "2026-09-11") into "Sep 11"
+function getMonthDay(dateString) {
+  const date = new Date(`${dateString}T00:00:00`);
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 //look up a city's coordinates using Open-Meteo's geocoding API
 async function getCoordinates(city) {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
@@ -239,11 +245,12 @@ function renderForecast(dailyData) {
 
     card.className = 'day-card';
     card.innerHTML = `
-      <p>${getDayName(date)}</p>
-      <p>${date}</p>
-      <p>${icon} ${label}</p>
-      <p>High: ${celsiusToFahrenheit(temperature_2m_max[i])}°F <span class="temp-secondary">${temperature_2m_max[i]}°C</span></p>
-      <p>Low: ${celsiusToFahrenheit(temperature_2m_min[i])}°F <span class="temp-secondary">${temperature_2m_min[i]}°C</span></p>
+      <p class="day-name">${getDayName(date)}</p>
+      <p class="day-date">${getMonthDay(date)}</p>
+      <p class="day-icon">${icon}</p>
+      <p>${label}</p>
+      <p>H: ${celsiusToFahrenheit(temperature_2m_max[i])}°F <span class="temp-secondary">${temperature_2m_max[i]}°C</span></p>
+      <p>L: ${celsiusToFahrenheit(temperature_2m_min[i])}°F <span class="temp-secondary">${temperature_2m_min[i]}°C</span></p>
       <p>Precip: ${precipitation_sum[i]} mm</p>
     `;
     forecastContainer.appendChild(card);
