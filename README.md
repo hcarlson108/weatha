@@ -1,4 +1,4 @@
-# Weatha 🌦️
+# Weatha
 
 A simple weather app that lets you search any city and see current conditions plus a 16-day forecast — temperature, precipitation, and wind.
 
