@@ -67,8 +67,12 @@ function renderCurrent(data) {
   const { name, temperature, weatherCode, wind } = data;
   const { label, icon } = getWeatherInfo(weatherCode);
 
+  const celcius = temperature;
+  const fahrenheit = (temperature * 9) / 5 + 32;
+
   document.getElementById('current-city').textContent = name;
-  document.getElementById('current-temp').textContent = `${temperature}°C`;
+  document.getElementById('current-temp').textContent =
+    `${celcius}°C and ${fahrenheit}°F`;
   document.getElementById('current-condition').textContent = `${icon} ${label}`;
   document.getElementById('current-wind').textContent = `Wind: ${wind} km/h`;
 }
@@ -92,8 +96,8 @@ function renderForecast(dailyData) {
     card.innerHTML = `
       <p>${date}</p>
       <p>${icon} ${label}</p>
-      <p>High: ${temperature_2m_max[i]}°C</p>
-      <p>Low: ${temperature_2m_min[i]}°C</p>
+      <p>High: ${temperature_2m_max[i]}°C and ${(temperature_2m_max[i] * 9) / 5 + 32}°F</p>
+      <p>Low: ${temperature_2m_min[i]}°C and ${(temperature_2m_min[i] * 9) / 5 + 32}°F</p>
       <p>Precip: ${precipitation_sum[i]} mm</p>
     `;
     forecastContainer.appendChild(card);
