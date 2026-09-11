@@ -28,6 +28,19 @@ function getWeatherInfo(code) {
   return WEATHER_CODES[code] || { label: 'unknown', icon: '?' };
 }
 
+//converts Celsius to Fahrenheit, rounded to the nearest whole degree
+function celsiusToFahrenheit(celsius) {
+  return Math.round((celsius * 9) / 5 + 32);
+}
+
+//turns an ISO date string (e.g. "2026-09-11") into a weekday name (e.g. "Thursday")
+function getDayName(dateString) {
+  // appending T00:00:00 (no Z) parses it as local time, not UTC — avoids the
+  // date shifting a day backwards for users behind UTC
+  const date = new Date(`${dateString}T00:00:00`);
+  return date.toLocaleDateString(undefined, { weekday: 'long' });
+}
+
 //look up a city's coordinates using Open-Meteo's geocoding API
 async function getCoordinates(city) {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
@@ -70,12 +83,12 @@ function renderCurrent(data) {
   const { name, temperature, weatherCode, wind } = data;
   const { label, icon } = getWeatherInfo(weatherCode);
 
-  const celcius = temperature;
-  const fahrenheit = (temperature * 9) / 5 + 32;
+  const fahrenheit = celsiusToFahrenheit(temperature);
 
+  document.getElementById('current').hidden = false;
   document.getElementById('current-city').textContent = name;
-  document.getElementById('current-temp').textContent =
-    `${celcius}°C and ${fahrenheit}°F`;
+  document.getElementById('current-temp').innerHTML =
+    `${fahrenheit}°F <span class="temp-secondary">${temperature}°C</span>`;
   document.getElementById('current-condition').textContent = `${icon} ${label}`;
   document.getElementById('current-wind').textContent = `Wind: ${wind} km/h`;
 }
@@ -97,10 +110,11 @@ function renderForecast(dailyData) {
 
     card.className = 'day-card';
     card.innerHTML = `
+      <p>${getDayName(date)}</p>
       <p>${date}</p>
       <p>${icon} ${label}</p>
-      <p>High: ${temperature_2m_max[i]}°C / ${(temperature_2m_max[i] * 9) / 5 + 32}°F</p>
-      <p>Low: ${temperature_2m_min[i]}°C / ${(temperature_2m_min[i] * 9) / 5 + 32}°F</p>
+      <p>High: ${celsiusToFahrenheit(temperature_2m_max[i])}°F <span class="temp-secondary">${temperature_2m_max[i]}°C</span></p>
+      <p>Low: ${celsiusToFahrenheit(temperature_2m_min[i])}°F <span class="temp-secondary">${temperature_2m_min[i]}°C</span></p>
       <p>Precip: ${precipitation_sum[i]} mm</p>
     `;
     forecastContainer.appendChild(card);
