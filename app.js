@@ -68,7 +68,7 @@ async function getForecast(latitude, longitude) {
     daily    -> data.daily.{time, weather_code, temperature_2m_max, temperature_2m_min, precipitation_sum}
     each daily field is a parallel array — data.daily.time[0] pairs with data.daily.temperature_2m_max[0], etc.
   */
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=16`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=16&wind_speed_unit=mph`;
 
   const response = await fetch(url);
   const data = await response.json();
@@ -90,7 +90,7 @@ function renderCurrent(data) {
   document.getElementById('current-temp').innerHTML =
     `${fahrenheit}°F <span class="temp-secondary">${temperature}°C</span>`;
   document.getElementById('current-condition').textContent = `${icon} ${label}`;
-  document.getElementById('current-wind').textContent = `Wind: ${wind} km/h`;
+  document.getElementById('current-wind').textContent = `Wind: ${wind} mph`;
 }
 
 //build a day-card for each entry in the daily arrays and append them into #forecast
