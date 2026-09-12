@@ -76,13 +76,13 @@ function getWeatherVibe(weatherCode, fahrenheit) {
       "can't see nothin but vibes",
       'spooky little fog moment',
       'mysterious weather arc unlocked',
-      "the world's just one big soft-focus filter today",
+      "the world's just one big soft focus filter today",
     ],
     cloudy: [
       'moody out, kinda love it aha',
       "sun's playing hide n seek",
       'time to read',
-      'the sun called out sick, time to get a big mac and cry',
+      'the sun called out sick..',
     ],
   };
 
@@ -172,24 +172,61 @@ function getMonthDay(dateString) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-//look up a city's coordinates using Open-Meteo's geocoding API
-async function getCoordinates(city) {
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
+//shared geocoding call — count controls how many matches come back
+//(1 for a direct search, more for the autocomplete dropdown)
+async function geocodeCity(city, count) {
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=${count}`;
 
-  // await pauses here until fetch resolves, then again until the body is parsed as JSON
   const response = await fetch(url);
   const data = await response.json();
 
-  console.log(data);
+  return data.results || [];
+}
+
+//look up a city's coordinates using Open-Meteo's geocoding API
+async function getCoordinates(city) {
+  const results = await geocodeCity(city, 1);
 
   // throwing rejects the promise this async function returns — callers catch it with try/catch
-  if (!data.results || data.results.length === 0) {
+  if (results.length === 0) {
     throw new Error(`No results found for "${city}"`);
   }
 
   // pick just the fields we need off the first match, ignore the rest
-  const { latitude, longitude, name, country } = data.results[0];
-  return { latitude, longitude, name, country };
+  const { latitude, longitude, name, admin1, country } = results[0];
+  return { latitude, longitude, name, admin1, country };
+}
+
+//maps full US state names (as returned in admin1) to their two-letter abbreviation
+const US_STATE_ABBREVIATIONS = {
+  Alabama: 'AL', Alaska: 'AK', Arizona: 'AZ', Arkansas: 'AR', California: 'CA',
+  Colorado: 'CO', Connecticut: 'CT', Delaware: 'DE', Florida: 'FL', Georgia: 'GA',
+  Hawaii: 'HI', Idaho: 'ID', Illinois: 'IL', Indiana: 'IN', Iowa: 'IA', Kansas: 'KS',
+  Kentucky: 'KY', Louisiana: 'LA', Maine: 'ME', Maryland: 'MD', Massachusetts: 'MA',
+  Michigan: 'MI', Minnesota: 'MN', Mississippi: 'MS', Missouri: 'MO', Montana: 'MT',
+  Nebraska: 'NE', Nevada: 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
+  'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND',
+  Ohio: 'OH', Oklahoma: 'OK', Oregon: 'OR', Pennsylvania: 'PA', 'Rhode Island': 'RI',
+  'South Carolina': 'SC', 'South Dakota': 'SD', Tennessee: 'TN', Texas: 'TX',
+  Utah: 'UT', Vermont: 'VT', Virginia: 'VA', Washington: 'WA', 'West Virginia': 'WV',
+  Wisconsin: 'WI', Wyoming: 'WY', 'District of Columbia': 'DC',
+};
+
+//builds the city label shown on the current-conditions card — appends
+//", ST" for US results with a mapped state; otherwise just the city name
+function formatCityLabel({ name, admin1, country }) {
+  const abbreviation = US_STATE_ABBREVIATIONS[admin1];
+  if (country === 'United States' && abbreviation) {
+    return `${name}, ${abbreviation}`;
+  }
+  return name;
+}
+
+//builds the fuller label shown in the autocomplete dropdown, e.g.
+//"Chesterton, Indiana, United States" — spelled out so cities that share
+//a name in different countries/regions are easy to tell apart
+function formatSuggestionLabel({ name, admin1, country }) {
+  return [name, admin1, country].filter(Boolean).join(', ');
 }
 
 //fetch the current weather for a set of coordinates using Open-Meteo's forecast API
@@ -211,15 +248,15 @@ async function getForecast(latitude, longitude) {
 
 //write current conditions into the #current container
 function renderCurrent(data) {
-  const { name, temperature, weatherCode, wind } = data;
+  const { name, admin1, country, temperature, weatherCode, wind } = data;
   const { label, icon } = getWeatherInfo(weatherCode);
 
   const fahrenheit = celsiusToFahrenheit(temperature);
 
   document.getElementById('current').hidden = false;
-  document.getElementById('current-city').textContent = name;
+  document.getElementById('current-city').textContent = formatCityLabel({ name, admin1, country });
   document.getElementById('current-temp').innerHTML =
-    `${fahrenheit}°F <span class="temp-secondary">${temperature}°C</span>`;
+    `<span class="temp-primary">${fahrenheit}°F</span><span class="temp-secondary">${temperature}°C</span>`;
   document.getElementById('current-condition').textContent = `${icon} ${label}`;
   document.getElementById('current-wind').textContent = `Wind: ${wind} mph`;
   document.getElementById('current-vibe').textContent = getWeatherVibe(
@@ -276,6 +313,33 @@ function hideLoading() {
   document.getElementById('loading').hidden = true;
 }
 
+//shared by both the Search button and picking a suggestion — fetches the
+//forecast for known coordinates and renders it
+async function renderWeatherForCoords(coords) {
+  clearResults();
+  showLoading();
+
+  try {
+    const forecast = await getForecast(coords.latitude, coords.longitude);
+
+    renderCurrent({
+      name: coords.name,
+      admin1: coords.admin1,
+      country: coords.country,
+      temperature: forecast.current.temperature_2m,
+      weatherCode: forecast.current.weather_code,
+      wind: forecast.current.wind_speed_10m,
+    });
+
+    renderForecast(forecast.daily);
+  } catch (error) {
+    // catches a network failure from the forecast fetch
+    console.log(error.message);
+  } finally {
+    hideLoading();
+  }
+}
+
 //add a click listener to the search button and grab input value
 searchButton.addEventListener('click', async () => {
   const city = searchInput.value.trim();
@@ -285,26 +349,115 @@ searchButton.addEventListener('click', async () => {
     return;
   }
 
-  clearResults();
-  showLoading();
+  hideSuggestions();
 
   try {
-    // geocode first, then use those coordinates to fetch the forecast — each step depends on the last
+    // geocode the typed text (takes the first match — ambiguous names should
+    // be resolved by picking a suggestion instead)
     const coords = await getCoordinates(city);
-    const forecast = await getForecast(coords.latitude, coords.longitude);
-
-    renderCurrent({
-      name: coords.name,
-      temperature: forecast.current.temperature_2m,
-      weatherCode: forecast.current.weather_code,
-      wind: forecast.current.wind_speed_10m,
-    });
-
-    renderForecast(forecast.daily);
+    await renderWeatherForCoords(coords);
   } catch (error) {
-    // catches a bad city name from getCoordinates or a network failure from either fetch
+    // catches a bad city name from getCoordinates
     console.log(error.message);
-  } finally {
-    hideLoading();
+  }
+});
+
+//---- autocomplete dropdown ----
+
+const suggestionsList = document.getElementById('suggestions');
+let suggestionTimer;
+let activeSuggestionIndex = -1;
+
+function hideSuggestions() {
+  suggestionsList.innerHTML = '';
+  suggestionsList.hidden = true;
+  activeSuggestionIndex = -1;
+}
+
+//user picked a suggestion — fill the input, close the dropdown, and go straight
+//to rendering, since we already have exact coordinates (no need to re-geocode)
+function selectSuggestion(result) {
+  const { name, admin1, country, latitude, longitude } = result;
+
+  searchInput.value = formatSuggestionLabel({ name, admin1, country });
+  hideSuggestions();
+  renderWeatherForCoords({ name, admin1, country, latitude, longitude });
+}
+
+function renderSuggestions(results) {
+  suggestionsList.innerHTML = '';
+  activeSuggestionIndex = -1;
+
+  if (results.length === 0) {
+    suggestionsList.hidden = true;
+    return;
+  }
+
+  results.forEach((result) => {
+    const item = document.createElement('li');
+    item.textContent = formatSuggestionLabel(result);
+    item.addEventListener('click', () => selectSuggestion(result));
+    suggestionsList.appendChild(item);
+  });
+
+  suggestionsList.hidden = false;
+}
+
+async function fetchSuggestions(query) {
+  const results = await geocodeCity(query, 5);
+  renderSuggestions(results);
+}
+
+//debounce so we're not hitting the API on every single keystroke
+searchInput.addEventListener('input', () => {
+  clearTimeout(suggestionTimer);
+  const query = searchInput.value.trim();
+
+  if (query.length < 2) {
+    hideSuggestions();
+    return;
+  }
+
+  suggestionTimer = setTimeout(() => fetchSuggestions(query), 300);
+});
+
+//arrow keys move a highlighted suggestion, Enter selects it (or runs a plain
+//search if nothing's highlighted), Escape closes the list
+searchInput.addEventListener('keydown', (event) => {
+  const items = suggestionsList.querySelectorAll('li');
+  const dropdownOpen = !suggestionsList.hidden && items.length > 0;
+
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    if (dropdownOpen && activeSuggestionIndex >= 0) {
+      items[activeSuggestionIndex].click();
+    } else {
+      searchButton.click();
+    }
+    return;
+  }
+
+  if (!dropdownOpen) return;
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    activeSuggestionIndex = (activeSuggestionIndex + 1) % items.length;
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    activeSuggestionIndex = (activeSuggestionIndex - 1 + items.length) % items.length;
+  } else if (event.key === 'Escape') {
+    hideSuggestions();
+    return;
+  } else {
+    return;
+  }
+
+  items.forEach((item, index) => item.classList.toggle('active', index === activeSuggestionIndex));
+});
+
+//clicking anywhere outside the search box closes the dropdown
+document.addEventListener('click', (event) => {
+  if (!document.getElementById('search-wrapper').contains(event.target)) {
+    hideSuggestions();
   }
 });

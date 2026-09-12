@@ -7,9 +7,11 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <h1>Weatha</h1>
-    <p id="slogan">(you like it or not)</p>
-    <input type="text" id="search-input" placeholder="Search for a city" />
+    <h1 id="title">Weatha</h1>
+    <div id="search-wrapper">
+      <input type="text" id="search-input" placeholder="Search for a city" autocomplete="off" />
+      <ul id="suggestions" hidden></ul>
+    </div>
     <div><button id="search-button">Search</button></div>
     <p id="loading" hidden>Loading…</p>
     <section id="current" hidden>
