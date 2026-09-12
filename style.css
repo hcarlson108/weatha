@@ -48,7 +48,7 @@ body {
 
 #title {
   text-align: center;
-  font-size: 5rem;
+  font-size: 4rem;
 }
 
 #slogan {
@@ -170,6 +170,11 @@ body {
 
 #current-condition {
   font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.day-condition {
+  font-weight: bold;
 }
 
 #current p {

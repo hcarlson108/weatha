@@ -13,19 +13,38 @@ const WEATHER_CODES = {
   51: { label: 'Light drizzle', icon: '🌦️' },
   53: { label: 'Moderate drizzle', icon: '🌦️' },
   55: { label: 'Dense drizzle', icon: '🌧️' },
+  56: { label: 'Light freezing drizzle', icon: '🌧️' },
+  57: { label: 'Dense freezing drizzle', icon: '🌧️' },
   61: { label: 'Slight rain', icon: '🌧️' },
   63: { label: 'Moderate rain', icon: '🌧️' },
   65: { label: 'Heavy rain', icon: '🌧️' },
+  66: { label: 'Light freezing rain', icon: '🌧️' },
+  67: { label: 'Heavy freezing rain', icon: '🌧️' },
   71: { label: 'Slight snow', icon: '🌨️' },
   73: { label: 'Moderate snow', icon: '🌨️' },
   75: { label: 'Heavy snow', icon: '❄️' },
-  80: { label: 'Rain showers', icon: '🌦️' },
+  77: { label: 'Snow grains', icon: '🌨️' },
+  80: { label: 'Slight rain showers', icon: '🌦️' },
+  81: { label: 'Moderate rain showers', icon: '🌦️' },
+  82: { label: 'Violent rain showers', icon: '🌧️' },
+  85: { label: 'Slight snow showers', icon: '🌨️' },
+  86: { label: 'Heavy snow showers', icon: '❄️' },
   95: { label: 'Thunderstorm', icon: '⛈️' },
+  96: { label: 'Thunderstorm with slight hail', icon: '⛈️' },
+  99: { label: 'Thunderstorm with heavy hail', icon: '⛈️' },
 };
 
 //function to get weather infor
 function getWeatherInfo(code) {
-  return WEATHER_CODES[code] || { label: 'unknown', icon: '?' };
+  const info = WEATHER_CODES[code];
+
+  if (!info) {
+    // helps pin down exactly which code the API sent if this fallback ever
+    // shows up again — check the console for the value logged here
+    console.warn(`Unmapped weather code: ${code}`);
+  }
+
+  return info || { label: 'unknown', icon: '?' };
 }
 
 //converts Celsius to Fahrenheit, rounded to the nearest whole degree
@@ -285,7 +304,7 @@ function renderForecast(dailyData) {
       <p class="day-name">${getDayName(date)}</p>
       <p class="day-date">${getMonthDay(date)}</p>
       <p class="day-icon">${icon}</p>
-      <p>${label}</p>
+      <p class="day-condition">${label}</p>
       <p>H: ${celsiusToFahrenheit(temperature_2m_max[i])}°F <span class="temp-secondary">${temperature_2m_max[i]}°C</span></p>
       <p>L: ${celsiusToFahrenheit(temperature_2m_min[i])}°F <span class="temp-secondary">${temperature_2m_min[i]}°C</span></p>
       <p>Precip: ${precipitation_sum[i]} mm</p>
@@ -367,6 +386,27 @@ searchButton.addEventListener('click', async () => {
 const suggestionsList = document.getElementById('suggestions');
 let suggestionTimer;
 let activeSuggestionIndex = -1;
+let lastKeyWasDelete = false;
+
+//track Backspace/Delete separately from the main keydown handler below —
+//autofill must skip these, otherwise deleting a character just gets it
+//instantly refilled and the user can never actually delete anything
+searchInput.addEventListener('keydown', (event) => {
+  lastKeyWasDelete = event.key === 'Backspace' || event.key === 'Delete';
+});
+
+//if the top match starts with what's typed, fill in the rest of it inline and
+//select the appended portion — typing further overwrites it, Enter/Tab accepts it
+function autofillTopMatch(typedQuery, topResult) {
+  if (!topResult) return;
+
+  const fullName = topResult.name;
+  const isPrefixMatch = fullName.toLowerCase().startsWith(typedQuery.toLowerCase());
+  if (!isPrefixMatch || fullName.length <= typedQuery.length) return;
+
+  searchInput.value = typedQuery + fullName.slice(typedQuery.length);
+  searchInput.setSelectionRange(typedQuery.length, fullName.length);
+}
 
 function hideSuggestions() {
   suggestionsList.innerHTML = '';
@@ -406,6 +446,13 @@ function renderSuggestions(results) {
 async function fetchSuggestions(query) {
   const results = await geocodeCity(query, 5);
   renderSuggestions(results);
+
+  // only autofill if the input still matches what this fetch was for —
+  // the user may have kept typing while the request was in flight
+  const currentValue = searchInput.value.trim();
+  if (!lastKeyWasDelete && currentValue.toLowerCase() === query.toLowerCase()) {
+    autofillTopMatch(currentValue, results[0]);
+  }
 }
 
 //debounce so we're not hitting the API on every single keystroke
